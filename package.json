@@ -1,0 +1,11 @@
+{
+  "name": "vercel-ai-bot",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node api/chat.js"
+  },
+  "dependencies": {
+    "@openrouter/sdk": "^1.0.0",
+    "dotenv": "^16.0.0"
+  }
+}
