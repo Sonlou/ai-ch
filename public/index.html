@@ -1,61 +1,176 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>NOVA</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nova- AI Search</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
   <style>
-    body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; background: #f0f0f0; }
-    #chat-box { background: white; height: 400px; overflow-y: scroll; padding: 1rem; border-radius: 8px; border: 1px solid #ddd; }
-    .msg { margin: 10px 0; padding: 8px 12px; border-radius: 15px; width: fit-content; max-width: 80%; }
-    .user { background: #0070f3; color: white; margin-left: auto; }
-    .ai { background: #e0e0e0; color: black; }
-    form { display: flex; margin-top: 1rem; gap: 10px; }
-    input { flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #ccc; }
-    button { padding: 10px 20px; background: #0070f3; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    /* Custom Gradient Text like iAsk */
+    .brand-gradient {
+      background: linear-gradient(90deg, #FF6B6B 0%, #a855f7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
   </style>
 </head>
-<body>
-  <h2>🤖 Nova</h2>
-  <div id="chat-box"></div>
-  <form id="chat-form">
-    <input type="text" id="user-input" placeholder="Type a message..." required />
-    <button type="submit">Send</button>
-  </form>
+<body class="bg-gray-50 h-screen flex flex-col items-center justify-center font-sans text-gray-800">
+
+  <nav class="absolute top-0 w-full p-6 flex justify-between items-center max-w-6xl mx-auto">
+    <div class="flex items-center gap-2 font-bold text-xl">
+      <div class="w-8 h-8 rounded-full bg-gradient-to-r from-red-400 to-purple-500"></div>
+      <span>iAsk Clone</span>
+    </div>
+    <div class="hidden md:flex gap-6 text-sm font-medium text-gray-500">
+      <a href="#" class="hover:text-black">iAsk Pro</a>
+      <a href="#" class="hover:text-black">AI Summarizer</a>
+      <a href="#" class="hover:text-black">Tools</a>
+    </div>
+    <button class="px-4 py-2 bg-gray-200 rounded-full text-sm font-bold hover:bg-gray-300">Sign Up</button>
+  </nav>
+
+  <main class="w-full max-w-3xl px-4 flex flex-col items-center text-center space-y-8">
+    
+    <div class="space-y-2">
+      <h1 class="text-6xl font-bold tracking-tighter brand-gradient">iAsk</h1>
+      <p class="text-gray-500 font-medium">Academic, Accurate, and <span class="text-purple-600">Authoritative</span></p>
+    </div>
+
+    <div class="w-full relative group">
+      <div class="absolute -inset-1 bg-gradient-to-r from-pink-200 to-purple-200 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-200"></div>
+      
+      <div class="relative bg-white rounded-2xl shadow-xl border border-gray-100 p-2 flex flex-col gap-2">
+        
+        <textarea 
+          id="user-input"
+          class="w-full p-4 resize-none outline-none text-lg text-gray-700 placeholder-gray-400 bg-transparent h-20"
+          placeholder="Ask AI anything..."
+        ></textarea>
+
+        <div id="file-preview" class="hidden px-4 pb-2 flex gap-2"></div>
+
+        <div class="flex justify-between items-center px-2 pb-1">
+          <div class="flex gap-2">
+            <button onclick="document.getElementById('file-upload').click()" class="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition" title="Upload Image/Text">
+              <i class="ph ph-paperclip text-xl"></i>
+            </button>
+            <button class="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition" title="Voice Input">
+              <i class="ph ph-microphone text-xl"></i>
+            </button>
+            
+            <input type="file" id="file-upload" class="hidden" accept="image/*,.txt" onchange="handleFileSelect(event)">
+          </div>
+
+          <button onclick="sendMessage()" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-full font-bold flex items-center gap-2 transition transform active:scale-95">
+            <span>iAsk AI</span>
+            <i class="ph ph-arrow-right-bold"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap justify-center gap-3 text-sm text-gray-500">
+      <button class="px-4 py-2 bg-white border border-gray-200 rounded-full hover:bg-gray-50 shadow-sm">🎓 Summarize paper</button>
+      <button class="px-4 py-2 bg-white border border-gray-200 rounded-full hover:bg-gray-50 shadow-sm">💻 Write Python code</button>
+      <button class="px-4 py-2 bg-white border border-gray-200 rounded-full hover:bg-gray-50 shadow-sm">🌍 Translate text</button>
+    </div>
+
+    <div id="response-area" class="w-full text-left hidden mt-8 p-6 bg-white rounded-xl shadow-sm border border-gray-100 max-h-96 overflow-y-auto">
+      <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Answer</h3>
+      <div id="ai-response" class="prose text-gray-800"></div>
+    </div>
+
+  </main>
 
   <script>
-    const chatBox = document.getElementById('chat-box');
-    const form = document.getElementById('chat-form');
-    const input = document.getElementById('user-input');
-    
-    // History starts with system prompt
-    let messages = [{ role: "system", content: "You are a helpful assistant." }];
+    let currentFile = null; // Stores the Base64 image string
 
-    function addMessage(role, text) {
-      const div = document.createElement('div');
-      div.className = `msg ${role === 'user' ? 'user' : 'ai'}`;
-      div.textContent = text;
-      chatBox.appendChild(div);
-      chatBox.scrollTop = chatBox.scrollHeight;
+    // 1. Handle File Uploads
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      
+      reader.onload = function(e) {
+        currentFile = e.target.result; // This is the base64 string
+        
+        // Show Preview
+        const preview = document.getElementById('file-preview');
+        preview.classList.remove('hidden');
+        preview.innerHTML = `
+          <div class="relative inline-block">
+            <img src="${currentFile}" class="h-16 w-16 object-cover rounded-lg border border-gray-200 shadow-sm">
+            <button onclick="clearFile()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5"><i class="ph ph-x text-xs"></i></button>
+          </div>
+        `;
+      };
+
+      if (file.type.startsWith('image/')) {
+        reader.readAsDataURL(file); // Convert image to Base64
+      } else {
+        // Handle text files
+        reader.readAsText(file);
+      }
     }
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    function clearFile() {
+      currentFile = null;
+      document.getElementById('file-preview').innerHTML = '';
+      document.getElementById('file-preview').classList.add('hidden');
+      document.getElementById('file-upload').value = '';
+    }
+
+    // 2. Send Message to Backend
+    async function sendMessage() {
+      const input = document.getElementById('user-input');
       const text = input.value;
-      input.value = '';
+      const responseArea = document.getElementById('response-area');
+      const aiResponse = document.getElementById('ai-response');
+
+      if (!text && !currentFile) return;
+
+      // Show Loading State
+      responseArea.classList.remove('hidden');
+      aiResponse.innerHTML = '<span class="animate-pulse">Thinking...</span>';
+
+      // Prepare Message Payload
+      let content = [];
       
-      addMessage('user', text);
-      messages.push({ role: "user", content: text });
+      // Add text if exists
+      if (text) content.push({ type: "text", text: text });
+      
+      // Add image if exists
+      if (currentFile) {
+        content.push({
+          type: "image_url",
+          image_url: { url: currentFile }
+        });
+      }
 
-      // Call our Vercel API
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages })
-      });
+      const messages = [{ role: "user", content: content }];
 
-      const data = await res.json();
-      addMessage('ai', data.content);
-      messages.push(data); // Add AI response to history
-    });
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages })
+        });
+
+        const data = await res.json();
+        
+        // Simple Markdown parsing (replace newlines with <br>)
+        aiResponse.innerHTML = data.content.replace(/\n/g, '<br>');
+        
+        // Clear inputs
+        input.value = '';
+        clearFile();
+
+      } catch (error) {
+        aiResponse.innerHTML = `<span class="text-red-500">Error: ${error.message}</span>`;
+      }
+    }
   </script>
 </body>
 </html>
